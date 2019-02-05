@@ -21,6 +21,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import javax.inject.Qualifier;
 import javax.inject.Scope;
 import org.jetbrains.annotations.Nullable;
@@ -96,6 +101,30 @@ final class Reflection {
       if (cause instanceof Error) throw (Error) cause;
       throw new RuntimeException("Unable to invoke " + constructor, cause);
     }
+  }
+
+  static void walkHierarchy(Class<?> root, ClassVisitor visitor) {
+    Set<Class<?>> seen = new LinkedHashSet<>();
+    Deque<Class<?>> queue = new ArrayDeque<>();
+    queue.addFirst(root);
+    while (!queue.isEmpty()) {
+      Class<?> item = queue.removeFirst();
+      if (!seen.add(item)) {
+        continue; // Duplicate interface.
+      }
+
+      visitor.visit(item);
+
+      Class<?> superclass = item.getSuperclass();
+      if (superclass != null) {
+        queue.add(superclass);
+      }
+      Collections.addAll(queue, item.getInterfaces());
+    }
+  }
+
+  interface ClassVisitor {
+    void visit(Class<?> cls);
   }
 
   private Reflection() {

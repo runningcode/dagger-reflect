@@ -9,11 +9,6 @@ import dagger.multibindings.IntoSet;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.LinkedHashSet;
-import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 import static dagger.reflect.DaggerReflect.notImplemented;
@@ -23,72 +18,76 @@ import static java.lang.reflect.Modifier.ABSTRACT;
 import static java.lang.reflect.Modifier.PRIVATE;
 import static java.lang.reflect.Modifier.STATIC;
 
-final class ReflectiveModuleParser {
+final class ReflectiveModuleParser implements Reflection.ClassVisitor {
   static void parse(Class<?> moduleClass, @Nullable Object instance,
       BindingGraph.Builder graphBuilder) {
-    Set<Class<?>> seen = new LinkedHashSet<>();
-    Deque<Class<?>> queue = new ArrayDeque<>();
-    queue.add(moduleClass);
-    while (!queue.isEmpty()) {
-      Class<?> target = queue.removeFirst();
-      if (!seen.add(target)) {
-        continue;
+    Reflection.walkHierarchy(moduleClass,
+        new ReflectiveModuleParser(moduleClass, instance, graphBuilder));
+  }
+
+  private final Class<?> moduleClass;
+  private final @Nullable Object instance;
+  private final BindingGraph.Builder graphBuilder;
+
+  private ReflectiveModuleParser(Class<?> moduleClass, @Nullable Object instance,
+      BindingGraph.Builder graphBuilder) {
+    this.moduleClass = moduleClass;
+    this.instance = instance;
+    this.graphBuilder = graphBuilder;
+  }
+
+  @Override public void visit(Class<?> cls) {
+    if (cls == Object.class) {
+      return;
+    }
+
+    for (Method method : cls.getDeclaredMethods()) {
+      if ((method.getModifiers() & PRIVATE) != 0) {
+        throw new IllegalArgumentException("Private module methods are not allowed: " + method);
       }
 
-      for (Method method : target.getDeclaredMethods()) {
-        if ((method.getModifiers() & PRIVATE) != 0) {
-          throw new IllegalArgumentException("Private module methods are not allowed: " + method);
-        }
-
-        Binding<?> binding;
-        if ((method.getModifiers() & ABSTRACT) != 0) {
-          if (method.getAnnotation(Binds.class) != null) {
-            binding = new Binding.UnlinkedBinds(method);
-          } else if (method.getAnnotation(BindsOptionalOf.class) != null) {
-            throw notImplemented("@BindsOptionalOf");
-          } else {
-            continue;
-          }
+      Binding<?> binding;
+      if ((method.getModifiers() & ABSTRACT) != 0) {
+        if (method.getAnnotation(Binds.class) != null) {
+          binding = new Binding.UnlinkedBinds(method);
+        } else if (method.getAnnotation(BindsOptionalOf.class) != null) {
+          throw notImplemented("@BindsOptionalOf");
         } else {
-          if ((method.getModifiers() & STATIC) == 0 && instance == null) {
-            throw new IllegalStateException(moduleClass.getCanonicalName() + " must be set");
-          }
-
-          if (method.getAnnotation(Provides.class) != null) {
-            binding = new Binding.UnlinkedProvides(instance, method);
-          } else {
-            continue;
-          }
+          continue;
+        }
+      } else {
+        if ((method.getModifiers() & STATIC) == 0 && instance == null) {
+          throw new IllegalStateException(moduleClass.getCanonicalName() + " must be set");
         }
 
-        if (method.getAnnotation(IntoSet.class) != null) {
-          throw notImplemented("@IntoSet");
+        if (method.getAnnotation(Provides.class) != null) {
+          binding = new Binding.UnlinkedProvides(instance, method);
+        } else {
+          continue;
         }
-        if (method.getAnnotation(ElementsIntoSet.class) != null) {
-          throw notImplemented("@ElementsIntoSet");
-        }
-        if (method.getAnnotation(IntoMap.class) != null) {
-          throw notImplemented("@IntoMap");
-        }
-
-        Annotation[] annotations = method.getAnnotations();
-        Type returnType = method.getGenericReturnType();
-        Key key = Key.of(findQualifier(annotations), returnType);
-
-        Annotation scope = findScope(annotations);
-        if (scope != null) {
-          // TODO check correct scope against BindingGraph.
-          throw notImplemented("Scoped bindings");
-        }
-
-        graphBuilder.add(key, binding);
       }
 
-      Class<?> superclass = target.getSuperclass();
-      if (superclass != Object.class && superclass != null) {
-        queue.add(superclass);
+      if (method.getAnnotation(IntoSet.class) != null) {
+        throw notImplemented("@IntoSet");
       }
-      Collections.addAll(queue, target.getInterfaces());
+      if (method.getAnnotation(ElementsIntoSet.class) != null) {
+        throw notImplemented("@ElementsIntoSet");
+      }
+      if (method.getAnnotation(IntoMap.class) != null) {
+        throw notImplemented("@IntoMap");
+      }
+
+      Annotation[] annotations = method.getAnnotations();
+      Type returnType = method.getGenericReturnType();
+      Key key = Key.of(findQualifier(annotations), returnType);
+
+      Annotation scope = findScope(annotations);
+      if (scope != null) {
+        // TODO check correct scope against BindingGraph.
+        throw notImplemented("Scoped bindings");
+      }
+
+      graphBuilder.add(key, binding);
     }
   }
 }
