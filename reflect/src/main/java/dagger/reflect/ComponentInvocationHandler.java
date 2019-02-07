@@ -72,7 +72,10 @@ final class ComponentInvocationHandler implements InvocationHandler {
         returnInstance = true;
       } else {
         throw new IllegalStateException(
-            "Members injection methods may only return the injected type or void: " + method);
+            "Members injection methods may only return the injected type or void: "
+                + method.getDeclaringClass().getName()
+                + '.'
+                + method.getName());
       }
 
       MembersInjector<Object> injector =

@@ -418,6 +418,68 @@ public final class IntegrationTest {
     assertThat(component.string()).isEqualTo("foo");
   }
 
+  @Test public void providerCycle() {
+    ignoreCodegenBackend();
+
+    ProviderCycle component = backend.create(ProviderCycle.class);
+    try {
+      component.string();
+      fail();
+    } catch (IllegalStateException e) {
+      assertThat(e).hasMessageThat().isEqualTo("Dependency cycle detected!\n"
+          + " * Requested: java.lang.String\n"
+          + "     from @Provides[com.example.ProviderCycle$Module1.longToString(…)]\n"
+          + " * Requested: java.lang.Long\n"
+          + "     from @Provides[com.example.ProviderCycle$Module1.intToLong(…)]\n"
+          + " * Requested: java.lang.Integer\n"
+          + "     from @Provides[com.example.ProviderCycle$Module1.stringToInteger(…)]\n"
+          + " * Requested: java.lang.String\n"
+          + "     which forms a cycle.");
+    }
+  }
+
+  @Test public void undeclaredModule() {
+    ignoreCodegenBackend();
+
+    UndeclaredModules.Builder builder = backend.builder(UndeclaredModules.Builder.class);
+    try {
+      builder.module(new UndeclaredModules.Module1());
+      fail();
+    } catch (IllegalStateException e) {
+      assertThat(e).hasMessageThat()
+          .isEqualTo("@Component.Builder has setters for modules that aren't required: "
+              + "com.example.UndeclaredModules$Builder.module");
+    }
+  }
+  @Test public void undeclaredDependencies() {
+    ignoreCodegenBackend();
+
+    UndeclaredDependencies.Builder builder = backend.builder(UndeclaredDependencies.Builder.class);
+    try {
+      builder.dep("hey");
+      fail();
+    } catch (IllegalStateException e) {
+      assertThat(e).hasMessageThat()
+          .isEqualTo("@Component.Builder has setters for dependencies that aren't required: "
+              + "com.example.UndeclaredDependencies$Builder.dep");
+    }
+  }
+
+  @Test public void membersInjectionWrongReturnType() {
+    ignoreCodegenBackend();
+
+    MembersInjectorWrongReturnType component = backend.create(MembersInjectorWrongReturnType.class);
+    MembersInjectorWrongReturnType.Target instance = new MembersInjectorWrongReturnType.Target();
+    try {
+      component.inject(instance);
+      fail();
+    } catch (IllegalStateException e) {
+      assertThat(e).hasMessageThat()
+          .isEqualTo("Members injection methods may only return the injected type or void: "
+              + "com.example.MembersInjectorWrongReturnType.inject");
+    }
+  }
+
   private void ignoreReflectionBackend() {
     assumeTrue("Not yet implemented for reflection backend", backend != Backend.REFLECT);
   }

@@ -35,6 +35,7 @@ interface Binding {
   abstract class UnlinkedBinding implements Binding {
     abstract LinkRequest request();
     abstract LinkedBinding<?> link(LinkedBinding<?>[] dependencies);
+    @Override public abstract String toString();
   }
 
   final class LinkRequest {
@@ -94,6 +95,10 @@ interface Binding {
     @Override public LinkedBinding<?> link(LinkedBinding<?>[] dependencies) {
       return dependencies[0];
     }
+
+    @Override public String toString() {
+      return "@Binds[" + method.getDeclaringClass().getName() + '.' + method.getName() + "(…)]";
+    }
   }
 
   final class UnlinkedOptionalBinding extends UnlinkedBinding {
@@ -120,6 +125,10 @@ interface Binding {
     @Override
     public LinkedBinding<?> link(LinkedBinding<?>[] dependencies) {
       return new LinkedOptionalBinding<>(dependencies[0]);
+    }
+
+    @Override public String toString() {
+      return "@Optional[" + method.getDeclaringClass().getName() + '.' + method.getName() + "(…)]";
     }
   }
 
@@ -172,6 +181,10 @@ interface Binding {
 
     @Override public LinkedBinding<?> link(LinkedBinding<?>[] dependencies) {
       return new LinkedProvides<>(instance, method, dependencies);
+    }
+
+    @Override public String toString() {
+      return "@Provides[" + method.getDeclaringClass().getName() + '.' + method.getName() + "(…)]";
     }
   }
 
@@ -236,6 +249,10 @@ interface Binding {
 
     @Override public LinkedBinding<T> link(LinkedBinding<?>[] dependencies) {
       return new LinkedJustInTime<>(constructor, dependencies);
+    }
+
+    @Override public String toString() {
+      return "@Inject[" + cls.getName() + ".<init>(…)]";
     }
   }
 
