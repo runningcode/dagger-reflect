@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 final class Scope {
-  private final ConcurrentHashMap<Key, Binding> bindings;
+  final ConcurrentHashMap<Key, Binding> bindings;
   private final JustInTimeLookup.Factory jitLookupFactory;
   /** The annotations denoting {@linkplain javax.inject.Scope scoped} bindings for this instance. */
   private final Set<Annotation> annotations;
