@@ -689,8 +689,6 @@ public final class IntegrationTest {
   }
 
   @Test public void multibindingProviderMap() {
-    ignoreReflectionBackend();
-
     MultibindingProviderMap component = backend.create(MultibindingProviderMap.class);
     Provider<Map<String, String>> values = component.values();
 
@@ -703,8 +701,6 @@ public final class IntegrationTest {
   }
 
   @Test public void multibindingMapProvider() {
-    ignoreReflectionBackend();
-
     MultibindingMapProvider component = backend.create(MultibindingMapProvider.class);
     Map<String, Provider<String>> values = component.values();
     assertThat(values.keySet()).containsExactly("1", "2");

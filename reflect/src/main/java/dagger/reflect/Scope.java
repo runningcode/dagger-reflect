@@ -3,6 +3,9 @@ package dagger.reflect;
 import dagger.Lazy;
 import dagger.reflect.Binding.LinkedBinding;
 import dagger.reflect.Binding.UnlinkedBinding;
+import org.jetbrains.annotations.Nullable;
+
+import javax.inject.Provider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -12,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.inject.Provider;
-import org.jetbrains.annotations.Nullable;
 
 final class Scope {
   private final ConcurrentHashMap<Key, Binding> bindings;
@@ -57,6 +58,16 @@ final class Scope {
       if (rawKeyType == Lazy.class) {
         Key realKey = Key.of(key.qualifier(), parameterizedKeyType.getActualTypeArguments()[0]);
         return new LinkedLazyBinding<>(this, realKey);
+      }
+      if (rawKeyType == Map.class) {
+        if (parameterizedKeyType.getActualTypeArguments()[1] instanceof ParameterizedType) {
+          Type type = ((ParameterizedType)parameterizedKeyType.getActualTypeArguments()[1]).getActualTypeArguments()[0];
+          Key realKey = Key.of(key.qualifier(), new TypeUtil.ParameterizedTypeImpl(null, Map.class, parameterizedKeyType.getActualTypeArguments()[0], type));
+          LinkedMapBinding binding = (LinkedMapBinding) findExistingBinding(realKey, linker);
+          if (binding != null) {
+            return binding.asLinkedMapProvidesBinding();
+          }
+        }
       }
     }
 
